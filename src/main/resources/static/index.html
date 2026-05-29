@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Grandmaster Chess</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   DESIGN: Dark editorial luxury — marble, gold, ink
+   Fonts: Cormorant Garamond (display) + DM Mono (ui)
+═══════════════════════════════════════════════════ */
+:root {
+  --ink:      #0d0d0f;
+  --paper:    #13131a;
+  --surface:  #1a1a24;
+  --lift:     #21212e;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --gold:     #c9a84c;
+  --gold2:    #e8c96a;
+  --gold-dim: rgba(201,168,76,0.15);
+  --ivory:    #f2eed8;
+  --cream:    #d4cfbb;
+  --muted:    #6b6b7e;
+  --dim:      #3a3a4f;
+  --danger:   #c45c5c;
+  --sq-light: #f0d9b5;
+  --sq-dark:  #b58863;
+  --r: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: 0.4;
+}
+
+/* ══════════════════ HEADER ══════════════════ */
+header {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px;
+  height: 64px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,13,15,0.85);
+  backdrop-filter: blur(12px);
+}
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem; font-weight: 700; letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.logo span { color: var(--ivory); font-weight: 300; }
+.header-right { display: flex; align-items: center; gap: 20px; }
+.live-count {
+  font-size: 0.65rem; color: var(--muted); letter-spacing: 1px;
+  display: flex; align-items: center; gap: 6px;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #4caf77;
+  box-shadow: 0 0 8px #4caf77;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ══════════════════ LOBBY PAGE ══════════════════ */
+#lobby-page {
+  position: relative; z-index: 1;
+  min-height: calc(100vh - 64px);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 60px 20px 40px;
+}
+
+/* Hero */
+.hero {
+  text-align: center;
+  margin-bottom: 64px;
+  animation: fadeUp 0.7s ease both;
+}
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(24px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.hero-eyebrow {
+  font-size: 0.65rem; letter-spacing: 4px; color: var(--gold);
+  text-transform: uppercase; margin-bottom: 16px;
+}
+.hero-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(3.5rem, 8vw, 6rem);
+  font-weight: 300; line-height: 1;
+  color: var(--ivory);
+  letter-spacing: -1px;
+}
+.hero-title em { font-style: italic; color: var(--gold); }
+.hero-sub {
+  margin-top: 20px; font-size: 0.75rem; color: var(--muted);
+  letter-spacing: 1px; line-height: 1.8;
+}
+
+/* Board decoration */
+.hero-board {
+  width: 120px; height: 120px;
+  display: grid; grid-template-columns: repeat(8,1fr); grid-template-rows: repeat(8,1fr);
+  margin: 28px auto 0;
+  border: 1px solid var(--border2); border-radius: 4px; overflow: hidden;
+  opacity: 0.4;
+}
+.hero-board div { aspect-ratio: 1; }
+.hero-board div:nth-child(odd) { background: var(--sq-light); }
+.hero-board div:nth-child(even) { background: var(--sq-dark); }
+
+/* Main CTA buttons */
+.cta-row {
+  display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+  margin-bottom: 60px;
+  animation: fadeUp 0.7s 0.15s ease both;
+}
+.cta-btn {
+  position: relative; overflow: hidden;
+  padding: 0; border: none; cursor: pointer;
+  border-radius: var(--r);
+  text-decoration: none; display: block;
+  transition: transform 0.2s;
+}
+.cta-btn:hover { transform: translateY(-2px); }
+.cta-btn:active { transform: translateY(0); }
+.cta-inner {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 28px 32px;
+  width: 260px;
+}
+.cta-btn.primary .cta-inner {
+  background: linear-gradient(135deg, #c9a84c 0%, #8a6c28 100%);
+  color: var(--ink);
+}
+.cta-btn.secondary .cta-inner {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--ivory);
+}
+.cta-btn.ghost .cta-inner {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--cream);
+}
+.cta-icon { font-size: 1.8rem; margin-bottom: 12px; }
+.cta-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.cta-desc { font-size: 0.65rem; letter-spacing: 0.5px; opacity: 0.65; line-height: 1.6; }
+.cta-btn.primary .cta-desc { opacity: 0.7; }
+
+/* ── Active games panel ── */
+.section {
+  width: 100%; max-width: 780px;
+  animation: fadeUp 0.7s 0.25s ease both;
+}
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem; font-weight: 600; color: var(--cream);
+  letter-spacing: 1px;
+}
+.refresh-btn {
+  background: none; border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--muted); font-family: 'DM Mono', monospace;
+  font-size: 0.65rem; padding: 5px 12px; cursor: pointer;
+  letter-spacing: 0.5px; transition: border-color 0.15s, color 0.15s;
+}
+.refresh-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+.game-list { display: flex; flex-direction: column; gap: 8px; }
+.game-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.game-row:hover { border-color: var(--gold-dim); background: var(--lift); }
+.game-row:hover .join-hint { opacity: 1; }
+.gr-piece { font-size: 1.4rem; opacity: 0.5; }
+.gr-info { flex: 1; }
+.gr-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem; font-weight: 600; color: var(--ivory);
+}
+.gr-detail { font-size: 0.65rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.5px; }
+.gr-tc {
+  font-size: 0.7rem; color: var(--gold);
+  background: var(--gold-dim);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 4px; padding: 3px 10px;
+}
+.join-hint {
+  font-size: 0.65rem; color: var(--gold); letter-spacing: 1px;
+  opacity: 0; transition: opacity 0.15s;
+  text-transform: uppercase;
+}
+.no-games {
+  text-align: center; padding: 40px 20px;
+  background: var(--surface); border: 1px dashed var(--border);
+  border-radius: var(--r);
+}
+.no-games-icon { font-size: 2rem; opacity: 0.2; margin-bottom: 10px; }
+.no-games p { font-size: 0.75rem; color: var(--muted); line-height: 2; }
+
+/* ══════════════════ MODALS ══════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 40px; width: 420px; max-width: 95vw;
+  animation: modalIn 0.25s ease;
+}
+@keyframes modalIn {
+  from { opacity:0; transform: scale(0.95) translateY(12px); }
+  to   { opacity:1; transform: scale(1) translateY(0); }
+}
+.modal-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.6rem; font-weight: 700; color: var(--gold);
+  margin-bottom: 6px;
+}
+.modal-sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 28px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.field label {
+  font-size: 0.65rem; letter-spacing: 1.5px; color: var(--muted);
+  text-transform: uppercase;
+}
+.field input, .field select {
+  background: var(--lift);
+  border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--ivory);
+  font-family: 'DM Mono', monospace; font-size: 0.85rem;
+  padding: 11px 14px;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.field input:focus, .field select:focus {
+  outline: none; border-color: var(--gold);
+}
+.field select option { background: var(--surface); }
+
+/* Time control grid */
+.tc-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-bottom: 18px;
+}
+.tc-chip {
+  padding: 10px 6px; text-align: center;
+  background: var(--lift); border: 1px solid var(--border);
+  border-radius: var(--r); cursor: pointer;
+  transition: all 0.15s;
+}
+.tc-chip:hover { border-color: var(--gold-dim); }
+.tc-chip.active { border-color: var(--gold); background: var(--gold-dim); color: var(--gold); }
+.tc-chip .tc-val { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; }
+.tc-chip .tc-lbl { font-size: 0.58rem; color: var(--muted); margin-top: 1px; }
+.tc-chip.active .tc-lbl { color: var(--gold); opacity: 0.8; }
+
+.modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+.btn-gold {
+  flex: 1; padding: 13px;
+  background: linear-gradient(135deg, #c9a84c, #8a6c28);
+  border: none; border-radius: var(--r);
+  color: var(--ink); font-family: 'DM Mono', monospace;
+  font-size: 0.8rem; font-weight: 500; letter-spacing: 1px;
+  cursor: pointer; text-transform: uppercase;
+  transition: opacity 0.15s;
+}
+.btn-gold:hover { opacity: 0.88; }
+.btn-ghost {
+  padding: 13px 20px;
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--muted);
+  font-family: 'DM Mono', monospace; font-size: 0.8rem;
+  cursor: pointer; letter-spacing: 0.5px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--ivory); }
+
+/* Difficulty cards */
+.diff-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 18px; }
+.diff-card {
+  padding: 14px; background: var(--lift);
+  border: 1px solid var(--border); border-radius: var(--r);
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.diff-card:hover { border-color: var(--gold-dim); }
+.diff-card.active { border-color: var(--gold); background: var(--gold-dim); }
+.diff-card .diff-icon { font-size: 1.3rem; margin-bottom: 4px; }
+.diff-card .diff-name { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 600; }
+.diff-card .diff-desc { font-size: 0.6rem; color: var(--muted); margin-top: 2px; }
+.diff-card.active .diff-desc { color: var(--gold); opacity: 0.8; }
+
+/* ══════════════════ GAME PAGE ══════════════════ */
+#game-page {
+  display: none; position: relative; z-index: 1;
+  min-height: calc(100vh - 64px);
+  padding: 24px 20px;
+  align-items: flex-start; justify-content: center;
+  gap: 24px; flex-wrap: wrap;
+}
+
+.board-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+/* Player strips */
+.player-strip {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); transition: border-color 0.2s;
+}
+.player-strip.active { border-color: var(--gold); }
+.ps-color {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,0.2);
+}
+.ps-color.w { background: #f5f0e0; }
+.ps-color.b { background: #1a1a1a; }
+.ps-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem; font-weight: 600; flex: 1;
+}
+.ps-clock {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem; font-weight: 700;
+  color: var(--gold); letter-spacing: 1px;
+  min-width: 64px; text-align: right;
+}
+.ps-clock.low { color: var(--danger); animation: clockPulse 1s infinite; }
+@keyframes clockPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Board */
+#board-wrap { position: relative; }
+canvas#board { display: block; border-radius: 3px; }
+
+/* Waiting overlay */
+#waiting-overlay {
+  display: none; position: absolute; inset: 0;
+  border-radius: 3px;
+  background: rgba(13,13,15,0.88);
+  backdrop-filter: blur(4px);
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; text-align: center; padding: 24px;
+}
+#waiting-overlay.show { display: flex; }
+.w-spinner {
+  width: 32px; height: 32px;
+  border: 2px solid var(--border2); border-top-color: var(--gold);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.w-title { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--ivory); }
+.w-link { font-size: 0.6rem; color: var(--muted); word-break: break-all; margin-top: 4px; }
+.w-copy {
+  padding: 7px 16px; background: none;
+  border: 1px solid var(--border2); border-radius: var(--r);
+  color: var(--gold); font-family: 'DM Mono', monospace;
+  font-size: 0.65rem; cursor: pointer; letter-spacing: 0.5px;
+  transition: background 0.15s;
+}
+.w-copy:hover { background: var(--gold-dim); }
+
+/* Side panel */
+.side-col { width: 220px; display: flex; flex-direction: column; gap: 14px; }
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px;
+}
+.panel-head {
+  font-size: 0.6rem; letter-spacing: 2px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 12px;
+}
+#status-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem; font-weight: 600; line-height: 1.4; color: var(--ivory);
+}
+#ai-status { font-size: 0.65rem; color: var(--muted); margin-top: 5px; min-height: 16px; }
+.ai-spinner {
+  display: inline-block; width: 8px; height: 8px;
+  border: 1px solid var(--muted); border-top-color: var(--gold);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  margin-right: 5px; vertical-align: middle;
+}
+
+.move-list {
+  font-size: 0.68rem; font-family: 'DM Mono', monospace;
+  max-height: 240px; overflow-y: auto; line-height: 2;
+}
+.move-list::-webkit-scrollbar { width: 3px; }
+.move-list::-webkit-scrollbar-track { background: transparent; }
+.move-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+.mp { display: flex; gap: 4px; }
+.mn { color: var(--gold); min-width: 22px; opacity: 0.6; }
+.mv { color: var(--ivory); min-width: 56px; }
+.mv.black { color: var(--cream); opacity: 0.7; }
+
+.panel-btns { display: flex; flex-direction: column; gap: 8px; }
+.p-btn {
+  width: 100%; padding: 10px; background: var(--lift);
+  border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--ivory); font-family: 'DM Mono', monospace;
+  font-size: 0.7rem; letter-spacing: 0.5px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.p-btn:hover { border-color: var(--border2); }
+.p-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ══════════════════ PROMOTION MODAL ══════════════════ */
+#promo-modal {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.85); align-items: center; justify-content: center;
+}
+#promo-modal.show { display: flex; }
+.promo-box {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 32px; text-align: center;
+}
+.promo-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem; color: var(--cream); margin-bottom: 20px;
+}
+.promo-pieces { display: flex; gap: 10px; }
+.promo-piece {
+  width: 72px; height: 72px; font-size: 44px;
+  background: var(--lift); border: 2px solid var(--border);
+  border-radius: 8px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.promo-piece:hover { border-color: var(--gold); transform: scale(1.08); }
+
+/* ══════════════════ TOAST ══════════════════ */
+#toast {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--lift); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 9px 20px;
+  font-size: 0.75rem; opacity: 0; z-index: 500;
+  transition: opacity 0.25s, transform 0.25s; pointer-events: none;
+  letter-spacing: 0.3px;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 640px) {
+  header { padding: 0 20px; }
+  .hero-title { font-size: 3rem; }
+  .cta-row { gap: 10px; }
+  .cta-inner { width: 220px; padding: 22px 20px; }
+  .side-col { width: 100%; max-width: 480px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="logo">Grand<span>master</span></div>
+  <div class="header-right">
+    <div class="live-count">
+      <div class="live-dot"></div>
+      <span id="active-count">0 active games</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ LOBBY PAGE ═══ -->
+<div id="lobby-page">
+  <div class="hero">
+    <div class="hero-eyebrow">Online Chess</div>
+    <h1 class="hero-title">Play the <em>Infinite</em><br>Game</h1>
+    <p class="hero-sub">Challenge the engine · Find opponents online<br>No account needed</p>
+    <div class="hero-board" id="hero-board"></div>
+  </div>
+
+  <div class="cta-row">
+    <div class="cta-btn primary" onclick="openModal('create-pvp-modal')">
+      <div class="cta-inner">
+        <div class="cta-icon">✦</div>
+        <div class="cta-label">Create Game</div>
+        <div class="cta-desc">Set time control · Share link · Wait for a challenger</div>
+      </div>
+    </div>
+    <div class="cta-btn secondary" onclick="scrollToGames()">
+      <div class="cta-inner">
+        <div class="cta-icon">◈</div>
+        <div class="cta-label">Find Game</div>
+        <div class="cta-desc">Browse open games · Join instantly · Play as Black</div>
+      </div>
+    </div>
+    <div class="cta-btn ghost" onclick="openModal('pva-modal')">
+      <div class="cta-inner">
+        <div class="cta-icon">◎</div>
+        <div class="cta-label">vs Computer</div>
+        <div class="cta-desc">Easy to Master · Four difficulty levels · AI powered</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open games -->
+  <div class="section" id="open-games-section">
+    <div class="section-header">
+      <div class="section-title">Open Games</div>
+      <button class="refresh-btn" onclick="sendListGames()">↻ Refresh</button>
+    </div>
+    <div class="game-list" id="game-list">
+      <div class="no-games">
+        <div class="no-games-icon">♟</div>
+        <p>No open games yet.<br>Be the first to create one.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ GAME PAGE ═══ -->
+<div id="game-page">
+  <div class="board-col">
+    <div class="player-strip" id="top-strip">
+      <div class="ps-color" id="top-color"></div>
+      <span class="ps-name" id="top-name">Opponent</span>
+      <span class="ps-clock" id="top-clock"></span>
+    </div>
+
+    <div id="board-wrap">
+      <canvas id="board"></canvas>
+      <div id="waiting-overlay">
+        <div class="w-spinner"></div>
+        <div class="w-title">Awaiting challenger…</div>
+        <div class="w-link" id="w-link"></div>
+        <button class="w-copy" onclick="copyLink()">Copy invite link</button>
+      </div>
+    </div>
+
+    <div class="player-strip" id="bot-strip">
+      <div class="ps-color" id="bot-color"></div>
+      <span class="ps-name" id="bot-name">You</span>
+      <span class="ps-clock" id="bot-clock"></span>
+    </div>
+  </div>
+
+  <div class="side-col">
+    <div class="panel">
+      <div class="panel-head">Status</div>
+      <div id="status-text">—</div>
+      <div id="ai-status"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">Moves</div>
+      <div class="move-list" id="move-list"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">Actions</div>
+      <div class="panel-btns">
+        <button class="p-btn" onclick="sendNewGame()">New Game</button>
+        <button class="p-btn danger" onclick="leaveGame()">Leave</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Create PvP -->
+<div class="modal-overlay" id="create-pvp-modal">
+  <div class="modal">
+    <div class="modal-title">Create Game</div>
+    <div class="modal-sub">Set your time control and wait for a challenger</div>
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="create-name" placeholder="Anonymous" maxlength="20"/>
+    </div>
+    <div class="field">
+      <label>Time Control</label>
+    </div>
+    <div class="tc-grid" id="create-tc-grid">
+      <div class="tc-chip active" data-val="0"   onclick="selectTC(this,'create')">
+        <div class="tc-val">∞</div><div class="tc-lbl">Unlimited</div>
+      </div>
+      <div class="tc-chip" data-val="60"  onclick="selectTC(this,'create')">
+        <div class="tc-val">1</div><div class="tc-lbl">1 min</div>
+      </div>
+      <div class="tc-chip" data-val="180" onclick="selectTC(this,'create')">
+        <div class="tc-val">3</div><div class="tc-lbl">3 min</div>
+      </div>
+      <div class="tc-chip" data-val="300" onclick="selectTC(this,'create')">
+        <div class="tc-val">5</div><div class="tc-lbl">5 min</div>
+      </div>
+      <div class="tc-chip" data-val="600" onclick="selectTC(this,'create')">
+        <div class="tc-val">10</div><div class="tc-lbl">10 min</div>
+      </div>
+      <div class="tc-chip" data-val="900" onclick="selectTC(this,'create')">
+        <div class="tc-val">15</div><div class="tc-lbl">15 min</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('create-pvp-modal')">Cancel</button>
+      <button class="btn-gold" onclick="doCreatePvP()">Create Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- vs AI -->
+<div class="modal-overlay" id="pva-modal">
+  <div class="modal">
+    <div class="modal-title">vs Computer</div>
+    <div class="modal-sub">Choose your difficulty and time control</div>
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="pva-name" placeholder="Anonymous" maxlength="20"/>
+    </div>
+    <div class="field">
+      <label>Difficulty</label>
+    </div>
+    <div class="diff-grid">
+      <div class="diff-card active" data-diff="EASY" onclick="selectDiff(this)">
+        <div class="diff-icon">♙</div>
+        <div class="diff-name">Easy</div>
+        <div class="diff-desc">Depth 1 · Learning</div>
+      </div>
+      <div class="diff-card" data-diff="MEDIUM" onclick="selectDiff(this)">
+        <div class="diff-icon">♗</div>
+        <div class="diff-name">Medium</div>
+        <div class="diff-desc">Depth 3 · Casual</div>
+      </div>
+      <div class="diff-card" data-diff="HARD" onclick="selectDiff(this)">
+        <div class="diff-icon">♖</div>
+        <div class="diff-name">Hard</div>
+        <div class="diff-desc">Depth 5 · Serious</div>
+      </div>
+      <div class="diff-card" data-diff="MASTER" onclick="selectDiff(this)">
+        <div class="diff-icon">♛</div>
+        <div class="diff-name">Master</div>
+        <div class="diff-desc">StrongAI · Brutal</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Time Control</label>
+    </div>
+    <div class="tc-grid" id="pva-tc-grid">
+      <div class="tc-chip active" data-val="0"   onclick="selectTC(this,'pva')">
+        <div class="tc-val">∞</div><div class="tc-lbl">Unlimited</div>
+      </div>
+      <div class="tc-chip" data-val="60"  onclick="selectTC(this,'pva')">
+        <div class="tc-val">1</div><div class="tc-lbl">1 min</div>
+      </div>
+      <div class="tc-chip" data-val="180" onclick="selectTC(this,'pva')">
+        <div class="tc-val">3</div><div class="tc-lbl">3 min</div>
+      </div>
+      <div class="tc-chip" data-val="300" onclick="selectTC(this,'pva')">
+        <div class="tc-val">5</div><div class="tc-lbl">5 min</div>
+      </div>
+      <div class="tc-chip" data-val="600" onclick="selectTC(this,'pva')">
+        <div class="tc-val">10</div><div class="tc-lbl">10 min</div>
+      </div>
+      <div class="tc-chip" data-val="900" onclick="selectTC(this,'pva')">
+        <div class="tc-val">15</div><div class="tc-lbl">15 min</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('pva-modal')">Cancel</button>
+      <button class="btn-gold" onclick="doJoinPvA()">Play</button>
+    </div>
+  </div>
+</div>
+
+<!-- Promotion -->
+<div id="promo-modal">
+  <div class="promo-box">
+    <div class="promo-title">Promote pawn</div>
+    <div class="promo-pieces" id="promo-pieces"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════
+const WS_URL = (() => {
+  const p = location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${p}://${location.host}/ws/chess`;
+})();
+
+const UNICODE = {
+  WHITE_K:'♔',WHITE_Q:'♕',WHITE_R:'♖',WHITE_B:'♗',WHITE_N:'♘',WHITE_P:'♙',
+  BLACK_K:'♚',BLACK_Q:'♛',BLACK_R:'♜',BLACK_B:'♝',BLACK_N:'♞',BLACK_P:'♟',
+};
+
+// ════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════
+let ws = null;
+let gameState  = null;
+let myColor    = null;
+let gameMode   = null;
+let myGameId   = null;
+let selected   = null;
+let legalMoves = [];
+let lastMove   = null;
+let flipped    = false;
+let clockInterval = null;
+let localWhiteMs  = -1;
+let localBlackMs  = -1;
+let clockRunning  = false;
+let selectedTC    = { create: 0, pva: 0 };
+
+// ════════════════════════════════════════════════
+//  HERO BOARD
+// ════════════════════════════════════════════════
+const hb = document.getElementById('hero-board');
+for (let i = 0; i < 64; i++) hb.appendChild(document.createElement('div'));
+
+// ════════════════════════════════════════════════
+//  CANVAS
+// ════════════════════════════════════════════════
+const SQUARE = 66;
+const BSIZE  = SQUARE * 8;
+const canvas = document.getElementById('board');
+canvas.width  = BSIZE;
+canvas.height = BSIZE;
+const ctx = canvas.getContext('2d');
+
+// ════════════════════════════════════════════════
+//  WEBSOCKET
+// ════════════════════════════════════════════════
+function connect(onOpen) {
+  if (ws) ws.close();
+  ws = new WebSocket(WS_URL);
+  ws.onopen    = onOpen;
+  ws.onmessage = e => handle(JSON.parse(e.data));
+  ws.onclose   = () => { if (gameMode) toast('Connection lost — please refresh.'); };
+  ws.onerror   = () => toast('Cannot connect to server.');
+}
+
+function handle(msg) {
+  switch (msg.event) {
+    case 'connected':            sendListGames(); break;
+    case 'lobby_update':         renderLobby(msg.games); break;
+    case 'joined':               onJoined(msg); break;
+    case 'opponent_joined':      onOpponentJoined(); break;
+    case 'board_update':
+    case 'ai_thinking':          onBoard(msg); break;
+    case 'legal_moves':          onLegal(msg); break;
+    case 'opponent_disconnected':toast('Opponent disconnected.'); break;
+    case 'error':                toast('⚠ ' + msg.message); break;
+  }
+}
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function sendListGames() { send({ action: 'list_games' }); }
+
+// ════════════════════════════════════════════════
+//  LOBBY RENDER
+// ════════════════════════════════════════════════
+function renderLobby(games) {
+  const list = document.getElementById('game-list');
+  document.getElementById('active-count').textContent =
+    games.length + ' open game' + (games.length !== 1 ? 's' : '');
+
+  if (!games.length) {
+    list.innerHTML = `<div class="no-games">
+      <div class="no-games-icon">♟</div>
+      <p>No open games yet.<br>Be the first to create one.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = games.map(g => {
+    const tc = g.timeControl === 0 ? '∞ Unlimited' : fmtTC(g.timeControl);
+    const age = fmtAge(g.createdAt);
+    return `<div class="game-row" onclick="joinGame('${g.gameId}')">
+      <div class="gr-piece">♔</div>
+      <div class="gr-info">
+        <div class="gr-name">${esc(g.creatorName)}'s game</div>
+        <div class="gr-detail">${age} ago · Game #${g.gameId}</div>
+      </div>
+      <div class="gr-tc">${tc}</div>
+      <div class="join-hint">Join →</div>
+    </div>`;
+  }).join('');
+}
+
+function fmtTC(s) {
+  if (s >= 60) return (s/60|0) + ' min';
+  return s + 's';
+}
+function fmtAge(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's';
+  return (s/60|0) + 'm';
+}
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function scrollToGames() {
+  document.getElementById('open-games-section').scrollIntoView({ behavior: 'smooth' });
+  sendListGames();
+}
+
+// ════════════════════════════════════════════════
+//  MODAL HELPERS
+// ════════════════════════════════════════════════
+function openModal(id) {
+  if (!ws) connect(() => {}); // ensure connected
+  document.getElementById(id).classList.add('show');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function selectTC(el, scope) {
+  document.querySelectorAll(`#${scope}-tc-grid .tc-chip`).forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  selectedTC[scope] = parseInt(el.dataset.val);
+}
+
+function selectDiff(el) {
+  document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ════════════════════════════════════════════════
+//  GAME ACTIONS
+// ════════════════════════════════════════════════
+function doCreatePvP() {
+  const name = document.getElementById('create-name').value.trim() || 'Anonymous';
+  closeModal('create-pvp-modal');
+  connect(() => send({ action:'create_pvp', timeControl: selectedTC.create, name }));
+}
+
+function joinGame(gameId) {
+  connect(() => send({ action:'join_pvp', gameId }));
+}
+
+function doJoinPvA() {
+  const name = document.getElementById('pva-name').value.trim() || 'Anonymous';
+  const diff = document.querySelector('.diff-card.active')?.dataset.diff || 'MEDIUM';
+  closeModal('pva-modal');
+  connect(() => send({ action:'join_pva', difficulty: diff, timeControl: selectedTC.pva, name }));
+}
+
+// ════════════════════════════════════════════════
+//  GAME EVENTS
+// ════════════════════════════════════════════════
+function onJoined(msg) {
+  myColor = msg.color;
+  gameMode = msg.mode;
+  myGameId = msg.gameId;
+  flipped  = myColor === 'BLACK';
+
+  document.getElementById('lobby-page').style.display = 'none';
+  const gp = document.getElementById('game-page');
+  gp.style.display = 'flex';
+
+  // Player strips
+  const topIsBlack = myColor === 'WHITE';
+  document.getElementById('top-color').className = 'ps-color ' + (topIsBlack ? 'b' : 'w');
+  document.getElementById('bot-color').className = 'ps-color ' + (topIsBlack ? 'w' : 'b');
+  document.getElementById('top-name').textContent = gameMode === 'PVA' ? 'Computer' : 'Opponent';
+  document.getElementById('bot-name').textContent = 'You';
+
+  if (msg.waiting) showWaiting(msg.gameId);
+}
+
+function onOpponentJoined() {
+  hideWaiting();
+  toast('Opponent joined — game starting!');
+}
+
+function onBoard(msg) {
+  gameState = msg;
+  selected  = null;
+  legalMoves = [];
+
+  const hist = msg.moveHistory || [];
+  lastMove = hist.length ? parseMoveStr(hist[hist.length-1]) : null;
+
+  // Sync clocks
+  localWhiteMs = msg.whiteTimeMs;
+  localBlackMs = msg.blackTimeMs;
+  startClock(msg.turn, msg.gameState);
+
+  drawBoard();
+  updateStatus();
+  updateMoveList();
+  updateTurnStrips();
+
+  document.getElementById('ai-status').innerHTML =
+    msg.aiThinking ? '<span class="ai-spinner"></span>AI is thinking…' : '';
+}
+
+function onLegal(msg) {
+  legalMoves = msg.moves || [];
+  drawBoard();
+}
+
+// ════════════════════════════════════════════════
+//  CLOCK
+// ════════════════════════════════════════════════
+function startClock(turn, state) {
+  clearInterval(clockInterval);
+  const tc = gameState?.timeControl;
+  const over = ['CHECKMATE','STALEMATE','DRAW'].includes(state);
+
+  if (!tc || tc === 0 || over) {
+    renderClocks();
+    return;
+  }
+
+  let lastTick = Date.now();
+  clockInterval = setInterval(() => {
+    const now = Date.now();
+    const dt  = now - lastTick;
+    lastTick  = now;
+
+    if (turn === 'WHITE') localWhiteMs = Math.max(0, localWhiteMs - dt);
+    else                  localBlackMs = Math.max(0, localBlackMs - dt);
+
+    renderClocks();
+    if (localWhiteMs === 0 || localBlackMs === 0) clearInterval(clockInterval);
+  }, 100);
+
+  renderClocks();
+}
+
+function renderClocks() {
+  const tc = gameState?.timeControl;
+  if (!tc || tc === 0) {
+    document.getElementById('top-clock').textContent = '';
+    document.getElementById('bot-clock').textContent = '';
+    return;
+  }
+  const topIsBlack = myColor === 'WHITE';
+  const topMs  = topIsBlack ? localBlackMs  : localWhiteMs;
+  const botMs  = topIsBlack ? localWhiteMs  : localBlackMs;
+  const topEl  = document.getElementById('top-clock');
+  const botEl  = document.getElementById('bot-clock');
+
+  topEl.textContent = fmtMs(topMs);
+  botEl.textContent = fmtMs(botMs);
+  topEl.className = 'ps-clock' + (topMs < 30000 ? ' low' : '');
+  botEl.className = 'ps-clock' + (botMs < 30000 ? ' low' : '');
+}
+
+function fmtMs(ms) {
+  if (ms < 0) return '';
+  const s = Math.ceil(ms / 1000);
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return `${m}:${ss}`;
+}
+
+// ════════════════════════════════════════════════
+//  BOARD DRAW
+// ════════════════════════════════════════════════
+function drawBoard() {
+  if (!gameState) return;
+  const board = gameState.board;
+  ctx.clearRect(0, 0, BSIZE, BSIZE);
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const dr = flipped ? 7 - r : r;
+      const dc = flipped ? 7 - c : c;
+      const x  = dc * SQUARE;
+      const y  = dr * SQUARE;
+      const light = (r + c) % 2 === 0;
+
+      // Base square
+      let bg = light ? '#f0d9b5' : '#b58863';
+      if (lastMove && ((r===lastMove.fromRow&&c===lastMove.fromCol)||(r===lastMove.toRow&&c===lastMove.toCol)))
+        bg = light ? '#ced26e' : '#aaa340';
+      ctx.fillStyle = bg;
+      ctx.fillRect(x, y, SQUARE, SQUARE);
+
+      // Selection
+      if (selected?.row === r && selected?.col === c) {
+        ctx.fillStyle = 'rgba(20,160,20,0.48)';
+        ctx.fillRect(x, y, SQUARE, SQUARE);
+      }
+
+      // Legal moves
+      const leg = legalMoves.some(m => m.row===r && m.col===c);
+      if (leg) {
+        if (board[r][c]) {
+          ctx.strokeStyle = 'rgba(20,160,20,0.6)';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(x+2, y+2, SQUARE-4, SQUARE-4);
+        } else {
+          ctx.fillStyle = 'rgba(20,160,20,0.32)';
+          ctx.beginPath();
+          ctx.arc(x+SQUARE/2, y+SQUARE/2, SQUARE*0.17, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+
+      // Check highlight
+      const piece = board[r][c];
+      if (piece && piece.endsWith('_K')) {
+        const gs = gameState.gameState;
+        if ((gs==='CHECK'||gs==='CHECKMATE') && piece.startsWith(gameState.turn)) {
+          ctx.fillStyle = 'rgba(210,50,50,0.5)';
+          ctx.fillRect(x, y, SQUARE, SQUARE);
+        }
+      }
+
+      // Piece
+      if (piece) {
+        const [col2, sym] = piece.split('_');
+        const uni = UNICODE[`${col2}_${sym}`];
+        if (uni) {
+          ctx.font = `${SQUARE*0.76}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = col2==='WHITE' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.15)';
+          ctx.globalAlpha = 1;
+          ctx.fillText(uni, x+SQUARE/2+1, y+SQUARE/2+2);
+          ctx.fillStyle = col2==='WHITE' ? '#fff' : '#111';
+          ctx.fillText(uni, x+SQUARE/2, y+SQUARE/2);
+        }
+      }
+
+      // Coord labels
+      ctx.globalAlpha = 0.7;
+      ctx.font = '10px DM Mono, monospace';
+      if (dc===0) {
+        ctx.textBaseline='top'; ctx.textAlign='left';
+        ctx.fillStyle = light ? '#b58863' : '#f0d9b5';
+        ctx.fillText(flipped ? r+1 : 8-r, x+3, y+3);
+      }
+      if (dr===7) {
+        ctx.textBaseline='bottom'; ctx.textAlign='right';
+        ctx.fillStyle = light ? '#b58863' : '#f0d9b5';
+        ctx.fillText('abcdefgh'[flipped?7-c:c], x+SQUARE-3, y+SQUARE-3);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ════════════════════════════════════════════════
+//  CLICK
+// ════════════════════════════════════════════════
+canvas.addEventListener('click', async e => {
+  if (!gameState || !myColor) return;
+  if (gameState.aiThinking) return;
+  const gs = gameState.gameState;
+  if (['CHECKMATE','STALEMATE','DRAW'].includes(gs)) return;
+  if (gameState.turn !== myColor) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const py = (e.clientY - rect.top)  * (canvas.height / rect.height);
+  const col = flipped ? 7 - Math.floor(px / SQUARE) : Math.floor(px / SQUARE);
+  const row = flipped ? 7 - Math.floor(py / SQUARE) : Math.floor(py / SQUARE);
+  if (row<0||row>7||col<0||col>7) return;
+
+  if (selected) {
+    const legal = legalMoves.some(m => m.row===row && m.col===col);
+    if (legal) {
+      let promo = null;
+      const p = gameState.board[selected.row][selected.col];
+      if (p?.endsWith('_P') &&
+          ((myColor==='WHITE'&&row===0)||(myColor==='BLACK'&&row===7)))
+        promo = await askPromotion(myColor);
+      send({ action:'move', fromRow:selected.row, fromCol:selected.col,
+             toRow:row, toCol:col, ...(promo?{promotion:promo}:{}) });
+      selected=null; legalMoves=[]; drawBoard(); return;
+    }
+  }
+
+  const piece = gameState.board[row][col];
+  if (piece?.startsWith(myColor)) {
+    selected = { row, col }; legalMoves = []; drawBoard();
+    send({ action:'legal', row, col });
+  } else {
+    selected=null; legalMoves=[]; drawBoard();
+  }
+});
+
+// ════════════════════════════════════════════════
+//  PROMOTION
+// ════════════════════════════════════════════════
+function askPromotion(color) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('promo-modal');
+    const box   = document.getElementById('promo-pieces');
+    modal.classList.add('show');
+    box.innerHTML = '';
+    const ps = color==='WHITE'
+      ? [['Q','♕'],['R','♖'],['B','♗'],['N','♘']]
+      : [['Q','♛'],['R','♜'],['B','♝'],['N','♞']];
+    for (const [s,u] of ps) {
+      const d = document.createElement('div');
+      d.className='promo-piece'; d.textContent=u;
+      d.onclick = () => { modal.classList.remove('show'); resolve(s); };
+      box.appendChild(d);
+    }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  UI UPDATES
+// ════════════════════════════════════════════════
+function updateStatus() {
+  if (!gameState) return;
+  const { gameState: gs, turn } = gameState;
+  const mine = turn === myColor;
+  const map = {
+    PLAYING:   mine ? 'Your turn' : "Opponent's turn",
+    CHECK:     mine ? '⚠ You are in check' : '⚠ Opponent in check',
+    CHECKMATE: mine ? '💀 Checkmate — you lost' : '🏆 Checkmate — you win!',
+    STALEMATE: '½ Stalemate — draw',
+    DRAW:      '½ Draw',
+  };
+  document.getElementById('status-text').textContent = map[gs] || gs;
+}
+
+function updateMoveList() {
+  if (!gameState) return;
+  const moves = gameState.moveHistory || [];
+  const el = document.getElementById('move-list');
+  el.innerHTML = '';
+  for (let i = 0; i < moves.length; i+=2) {
+    const row = document.createElement('div');
+    row.className = 'mp';
+    row.innerHTML = `<span class="mn">${i/2+1}.</span>`
+      + `<span class="mv">${moves[i]||''}</span>`
+      + `<span class="mv black">${moves[i+1]||''}</span>`;
+    el.appendChild(row);
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateTurnStrips() {
+  if (!gameState) return;
+  const topIsBlack = myColor === 'WHITE';
+  const topColor = topIsBlack ? 'BLACK' : 'WHITE';
+  document.getElementById('top-strip').classList.toggle('active', topColor===gameState.turn);
+  document.getElementById('bot-strip').classList.toggle('active', myColor===gameState.turn);
+}
+
+// ════════════════════════════════════════════════
+//  WAITING OVERLAY
+// ════════════════════════════════════════════════
+function showWaiting(gameId) {
+  const link = `${location.origin}?join=${gameId}`;
+  document.getElementById('w-link').textContent = link;
+  document.getElementById('waiting-overlay').classList.add('show');
+}
+function hideWaiting() {
+  document.getElementById('waiting-overlay').classList.remove('show');
+}
+function copyLink() {
+  const link = document.getElementById('w-link').textContent;
+  navigator.clipboard.writeText(link).then(() => toast('Link copied!'));
+}
+
+// ════════════════════════════════════════════════
+//  ACTIONS
+// ════════════════════════════════════════════════
+function sendNewGame() { send({ action:'new_game' }); }
+
+function leaveGame() {
+  clearInterval(clockInterval);
+  if (ws) ws.close();
+  ws=null; gameMode=null; myColor=null; gameState=null;
+  selected=null; legalMoves=[]; myGameId=null;
+  document.getElementById('game-page').style.display='none';
+  document.getElementById('lobby-page').style.display='';
+  ctx.clearRect(0,0,BSIZE,BSIZE);
+  connect(() => sendListGames());
+}
+
+// ════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════
+function parseMoveStr(s) {
+  const m = s.match(/([a-h])([1-8])([a-h])([1-8])/);
+  if (!m) return null;
+  const fc='abcdefgh'.indexOf(m[1]), tr=8-+m[2], tc2='abcdefgh'.indexOf(m[3]), rr=8-+m[4];
+  return { fromRow:tr, fromCol:fc, toRow:rr, toCol:tc2 };
+}
+
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ════════════════════════════════════════════════
+//  AUTO-JOIN FROM URL
+// ════════════════════════════════════════════════
+const urlJoin = new URLSearchParams(location.search).get('join');
+if (urlJoin) {
+  connect(() => send({ action:'join_pvp', gameId: urlJoin }));
+} else {
+  connect(() => sendListGames());
+}
+</script>
+</body>
+</html>
