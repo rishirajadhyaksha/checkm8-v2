@@ -947,7 +947,9 @@ function onLegal(msg) {
 function startClock(turn, state) {
   clearInterval(clockInterval);
   const tc = gameState?.timeControl;
-  const over = ['CHECKMATE','STALEMATE','DRAW'].includes(state);
+  const over =
+  ['CHECKMATE','STALEMATE','DRAW'].includes(state)
+  || gameState?.timeout;
 
   if (!tc || tc === 0 || over) {
     renderClocks();
@@ -985,9 +987,12 @@ function renderClocks() {
 
   topEl.textContent = fmtMs(topMs);
   botEl.textContent = fmtMs(botMs);
-  topEl.className = 'ps-clock' + (topMs < 30000 ? ' low' : '');
-  botEl.className = 'ps-clock' + (botMs < 30000 ? ' low' : '');
-}
+  topEl.className =
+  'ps-clock' + (topMs < 30000 || topMs === 0 ? ' low' : '');
+
+  botEl.className =
+    'ps-clock' + (botMs < 30000 || botMs === 0 ? ' low' : '');
+  }
 
 function fmtMs(ms) {
   if (ms < 0) return '';
@@ -1092,7 +1097,7 @@ canvas.addEventListener('click', async e => {
   if (!gameState || !myColor) return;
   if (gameState.aiThinking) return;
   const gs = gameState.gameState;
-  if (['CHECKMATE','STALEMATE','DRAW'].includes(gs)) return;
+  if (['CHECKMATE','STALEMATE','DRAW'].includes(gs) || gameState.timeout) return;
   if (gameState.turn !== myColor) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -1151,8 +1156,22 @@ function askPromotion(color) {
 // ════════════════════════════════════════════════
 function updateStatus() {
   if (!gameState) return;
+
+  // Timeout handling
+  if (gameState.timeout) {
+    const won = gameState.winner === myColor;
+
+    document.getElementById('status-text').textContent =
+      won
+        ? '⏰ Opponent flagged — you win!'
+        : '⏰ You ran out of time';
+
+    return;
+  }
+
   const { gameState: gs, turn } = gameState;
   const mine = turn === myColor;
+
   const map = {
     PLAYING:   mine ? 'Your turn' : "Opponent's turn",
     CHECK:     mine ? '⚠ You are in check' : '⚠ Opponent in check',
@@ -1160,6 +1179,7 @@ function updateStatus() {
     STALEMATE: '½ Stalemate — draw',
     DRAW:      '½ Draw',
   };
+
   document.getElementById('status-text').textContent = map[gs] || gs;
 }
 
@@ -1180,6 +1200,12 @@ function updateMoveList() {
 }
 
 function updateTurnStrips() {
+  if (gameState.timeout) {
+  document.getElementById('top-strip').classList.remove('active');
+  document.getElementById('bot-strip').classList.remove('active');
+  return;
+}
+
   if (!gameState) return;
   const topIsBlack = myColor === 'WHITE';
   const topColor = topIsBlack ? 'BLACK' : 'WHITE';
