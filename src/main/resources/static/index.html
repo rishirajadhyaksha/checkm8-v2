@@ -121,9 +121,22 @@ header {
   border: 1px solid var(--border2); border-radius: 4px; overflow: hidden;
   opacity: 0.4;
 }
-.hero-board div { aspect-ratio: 1; }
-.hero-board div:nth-child(odd) { background: var(--sq-light); }
-.hero-board div:nth-child(even) { background: var(--sq-dark); }
+.hero-board div {
+  aspect-ratio: 1;
+  background: var(--sq-light);
+}
+
+/* Proper checkerboard pattern */
+.hero-board div:nth-child(16n + 1),
+.hero-board div:nth-child(16n + 3),
+.hero-board div:nth-child(16n + 5),
+.hero-board div:nth-child(16n + 7),
+.hero-board div:nth-child(16n + 10),
+.hero-board div:nth-child(16n + 12),
+.hero-board div:nth-child(16n + 14),
+.hero-board div:nth-child(16n + 16) {
+  background: var(--sq-dark);
+}
 
 /* Main CTA buttons */
 .cta-row {
@@ -486,7 +499,7 @@ canvas#board { display: block; border-radius: 3px; }
 
 <!-- ═══ HEADER ═══ -->
 <header>
-  <div class="logo">Grand<span>master</span></div>
+  <div class="logo">checkm8</div>
   <div class="header-right">
     <div class="live-count">
       <div class="live-dot"></div>
@@ -499,8 +512,8 @@ canvas#board { display: block; border-radius: 3px; }
 <div id="lobby-page">
   <div class="hero">
     <div class="hero-eyebrow">Online Chess</div>
-    <h1 class="hero-title">Play the <em>Infinite</em><br>Game</h1>
-    <p class="hero-sub">Challenge the engine · Find opponents online<br>No account needed</p>
+    <h1 class="hero-title">Play the computer or online challengers!</h1>
+    <p class="hero-sub">Challenge the engine · Find opponents online</p>
     <div class="hero-board" id="hero-board"></div>
   </div>
 

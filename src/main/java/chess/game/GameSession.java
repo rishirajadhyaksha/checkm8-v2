@@ -7,6 +7,8 @@ import org.springframework.web.socket.WebSocketSession;
 import java.util.*;
 import java.util.concurrent.*;
 
+
+
 public class GameSession {
 
     public enum Mode { PVP, PVA }
@@ -33,6 +35,9 @@ public class GameSession {
 
     private volatile boolean aiThinking = false;
     private final ExecutorService aiExecutor = Executors.newSingleThreadExecutor();
+
+    private volatile boolean gameOverOnTime = false;
+    private Color winner = null;
 
     public GameSession(String gameId, Mode mode, AiDifficulty difficulty,
                        int timeControlSeconds, String creatorName) {
@@ -98,6 +103,7 @@ public class GameSession {
                 blackTimeMs = Math.max(0, blackTimeMs - elapsed);
             }
             turnStartMs = -1;
+            checkTimeout();
         }
     }
 
@@ -117,8 +123,29 @@ public class GameSession {
         return blackTimeMs;
     }
 
+    private synchronized void checkTimeout() {
+    if (timeControlSeconds <= 0 || gameOverOnTime) return;
+
+    long white = getWhiteTimeMs();
+    long black = getBlackTimeMs();
+
+    if (white <= 0) {
+        whiteTimeMs = 0;
+        gameOverOnTime = true;
+        winner = Color.BLACK;
+    }
+
+    if (black <= 0) {
+        blackTimeMs = 0;
+        gameOverOnTime = true;
+        winner = Color.WHITE;
+    }
+}
+
     // ── Move ──────────────────────────────────────────────────────────────────
     public synchronized boolean applyMove(int fromRow, int fromCol, int toRow, int toCol, String promotionPiece) {
+        checkTimeout();
+        if (gameOverOnTime) return false;
         List<Move> legal = board.getLegalMovesForPiece(fromRow, fromCol);
         for (Move m : legal) {
             if (m.getToRow() == toRow && m.getToCol() == toCol) {
@@ -162,6 +189,7 @@ public class GameSession {
 
     // ── Serialization ─────────────────────────────────────────────────────────
     public BoardStateDTO toBoardState(String event) {
+
         BoardStateDTO dto = new BoardStateDTO();
         dto.event       = event;
         dto.gameId      = gameId;
@@ -172,6 +200,8 @@ public class GameSession {
         dto.whiteTimeMs = getWhiteTimeMs();
         dto.blackTimeMs = getBlackTimeMs();
         dto.timeControl = timeControlSeconds;
+        dto.timeout = gameOverOnTime;
+        dto.winner = winner != null ? winner.name() : null;
 
         dto.board = new String[8][8];
         for (int r = 0; r < 8; r++)
@@ -220,6 +250,8 @@ public class GameSession {
         public int timeControl;
         public String[][] board;
         public List<String> moveHistory;
+        public boolean timeout;
+        public String winner;
     }
 
     public static class LobbyEntryDTO {
