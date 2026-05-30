@@ -6,9 +6,6 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-
 
 public class GameSession {
 
@@ -40,13 +37,11 @@ public class GameSession {
     private volatile boolean gameOverOnTime = false;
     private Color winner = null;
 
-    // Server-side clock ticker — fires every 500ms to catch time expiry
+    // Server-side proactive clock — fires every 500ms regardless of moves
     private ScheduledExecutorService clockTicker;
-    private Runnable onTimeout; // set by the WebSocket handler
+    private Runnable onTimeout;
 
-    public void setOnTimeout(Runnable cb) {
-        this.onTimeout = cb;
-    }
+    public void setOnTimeout(Runnable cb) { this.onTimeout = cb; }
 
     public GameSession(String gameId, Mode mode, AiDifficulty difficulty,
                        int timeControlSeconds, String creatorName) {
@@ -100,16 +95,14 @@ public class GameSession {
     public synchronized void startTurnClock() {
         if (timeControlSeconds <= 0) return;
         turnStartMs = System.currentTimeMillis();
-        startClockTicker();
-    }
-
-    private void startClockTicker() {
-        if (clockTicker != null && !clockTicker.isShutdown()) return;
-        clockTicker = Executors.newSingleThreadScheduledExecutor();
-        clockTicker.scheduleAtFixedRate(() -> {
-            if (gameOverOnTime) { clockTicker.shutdownNow(); return; }
-            checkTimeout();
-        }, 500, 500, TimeUnit.MILLISECONDS);
+        // Start the proactive server-side ticker if not already running
+        if (clockTicker == null || clockTicker.isShutdown()) {
+            clockTicker = Executors.newSingleThreadScheduledExecutor();
+            clockTicker.scheduleAtFixedRate(() -> {
+                if (gameOverOnTime) { clockTicker.shutdownNow(); return; }
+                checkTimeout();
+            }, 500, 500, TimeUnit.MILLISECONDS);
+        }
     }
 
     public synchronized void stopTurnClock() {
@@ -143,7 +136,7 @@ public class GameSession {
         return blackTimeMs;
     }
 
-    private synchronized void checkTimeout() {
+    public synchronized void checkTimeout() {
         if (timeControlSeconds <= 0 || gameOverOnTime) return;
 
         long white = getWhiteTimeMs();

@@ -775,6 +775,7 @@ let clockInterval = null;
 let localWhiteMs  = -1;
 let localBlackMs  = -1;
 let clockRunning  = false;
+let localTimedOut = false;  // set immediately when our clock hits 0
 let selectedTC    = { create: 0, pva: 0 };
 
 // ════════════════════════════════════════════════
@@ -815,7 +816,7 @@ function handle(msg) {
     case 'ai_thinking':          onBoard(msg); break;
     case 'legal_moves':          onLegal(msg); break;
     case 'opponent_disconnected':
-      if (!gameState?.timeout) openModal('disconnect-modal');
+      if (!gameState?.timeout && !localTimedOut) openModal('disconnect-modal');
       break;
     case 'error':                toast('⚠ ' + msg.message); break;
   }
@@ -974,6 +975,7 @@ function onJoined(msg) {
   gameMode = msg.mode;
   myGameId = msg.gameId;
   flipped  = myColor === 'BLACK';
+  localTimedOut = false;
 
   document.getElementById('lobby-page').style.display = 'none';
   const gp = document.getElementById('game-page');
@@ -1028,8 +1030,7 @@ function startClock(turn, state) {
   clearInterval(clockInterval);
   const tc = gameState?.timeControl;
   const over =
-  ['CHECKMATE','STALEMATE','DRAW'].includes(state)
-  || gameState?.timeout;
+    ['CHECKMATE','STALEMATE','DRAW'].includes(state) || gameState?.timeout || localTimedOut;
 
   if (!tc || tc === 0 || over) {
     renderClocks();
@@ -1046,7 +1047,24 @@ function startClock(turn, state) {
     else                  localBlackMs = Math.max(0, localBlackMs - dt);
 
     renderClocks();
-    if (localWhiteMs === 0 || localBlackMs === 0) clearInterval(clockInterval);
+
+    if (localWhiteMs === 0 || localBlackMs === 0) {
+      clearInterval(clockInterval);
+
+      // Determine who timed out
+      const timedOutColor = localWhiteMs === 0 ? 'WHITE' : 'BLACK';
+      const iLost = timedOutColor === myColor;
+      localTimedOut = true;
+
+      // Update UI immediately without waiting for server
+      document.getElementById('status-text').textContent =
+        iLost ? '⏰ You timed out' : '⏰ Opponent timed out — you win!';
+      document.getElementById('top-strip').classList.remove('active');
+      document.getElementById('bot-strip').classList.remove('active');
+
+      // Tell server to confirm and broadcast to the other player
+      send({ action: 'claim_timeout' });
+    }
   }, 100);
 
   renderClocks();

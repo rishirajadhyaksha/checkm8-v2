@@ -157,7 +157,8 @@ public class ChessWebSocketHandler extends TextWebSocketHandler {
         Optional<GameSession> gameOpt = registry.getGameForSocket(session.getId());
         if (gameOpt.isEmpty()) return;
         GameSession game = gameOpt.get();
-        // Server-side clock is authoritative — just re-check and broadcast result
+        // Force the server to evaluate the clock right now, then broadcast
+        game.checkTimeout();
         broadcast(game, game.toBoardState("board_update"));
     }
 
