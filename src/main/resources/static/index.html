@@ -635,6 +635,13 @@ canvas#board { display: block; border-radius: 3px; }
       <div class="tc-chip" data-val="900" onclick="selectTC(this,'create')">
         <div class="tc-val">15</div><div class="tc-lbl">15 min</div>
       </div>
+      <div class="tc-chip" data-val="-1" onclick="selectTC(this,'create')">
+        <div class="tc-val">✎</div><div class="tc-lbl">Custom</div>
+      </div>
+    </div>
+    <div class="field" id="create-custom-wrap" style="display:none;">
+      <label>Custom Minutes</label>
+      <input type="number" id="create-custom-time" min="1" max="180" placeholder="Enter minutes"/>
     </div>
 
     <div class="modal-actions">
@@ -701,33 +708,12 @@ canvas#board { display: block; border-radius: 3px; }
         <div class="tc-val">15</div><div class="tc-lbl">15 min</div>
       </div>
       <div class="tc-chip" data-val="-1" onclick="selectTC(this,'pva')">
-        <div class="tc-val">✎</div>
-        <div class="tc-lbl">Custom</div>
+        <div class="tc-val">✎</div><div class="tc-lbl">Custom</div>
       </div>
-      <div class="tc-chip" data-val="-1" onclick="selectTC(this,'create')">
-        <div class="tc-val">✎</div>
-        <div class="tc-lbl">Custom</div>
-      </div>
-    </div>
-    <div class="field" id="create-custom-wrap" style="display:none;">
-      <label>Custom Minutes</label>
-      <input
-        type="number"
-        id="create-custom-time"
-        min="1"
-        max="180"
-        placeholder="Enter minutes"
-      />
     </div>
     <div class="field" id="pva-custom-wrap" style="display:none;">
       <label>Custom Minutes</label>
-      <input
-        type="number"
-        id="pva-custom-time"
-        min="1"
-        max="180"
-        placeholder="Enter minutes"
-      />
+      <input type="number" id="pva-custom-time" min="1" max="180" placeholder="Enter minutes"/>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('pva-modal')">Cancel</button>
@@ -1362,6 +1348,6 @@ if (urlJoin) {
 } else {
   connect(() => sendListGames());
 }
-</script> 
+</script>
 </body>
 </html>
