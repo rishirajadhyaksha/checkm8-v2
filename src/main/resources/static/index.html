@@ -635,13 +635,6 @@ canvas#board { display: block; border-radius: 3px; }
       <div class="tc-chip" data-val="900" onclick="selectTC(this,'create')">
         <div class="tc-val">15</div><div class="tc-lbl">15 min</div>
       </div>
-      <div class="tc-chip" data-val="-1" onclick="selectTC(this,'create')">
-        <div class="tc-val">✎</div><div class="tc-lbl">Custom</div>
-      </div>
-    </div>
-    <div class="field" id="create-custom-wrap" style="display:none;">
-      <label>Custom Minutes</label>
-      <input type="number" id="create-custom-time" min="1" max="180" placeholder="Enter minutes"/>
     </div>
 
     <div class="modal-actions">
@@ -711,10 +704,30 @@ canvas#board { display: block; border-radius: 3px; }
         <div class="tc-val">✎</div>
         <div class="tc-lbl">Custom</div>
       </div>
+      <div class="tc-chip" data-val="-1" onclick="selectTC(this,'create')">
+        <div class="tc-val">✎</div>
+        <div class="tc-lbl">Custom</div>
+      </div>
+    </div>
+    <div class="field" id="create-custom-wrap" style="display:none;">
+      <label>Custom Minutes</label>
+      <input
+        type="number"
+        id="create-custom-time"
+        min="1"
+        max="180"
+        placeholder="Enter minutes"
+      />
     </div>
     <div class="field" id="pva-custom-wrap" style="display:none;">
       <label>Custom Minutes</label>
-      <input type="number" id="pva-custom-time" min="1" max="180" placeholder="Enter minutes"/>
+      <input
+        type="number"
+        id="pva-custom-time"
+        min="1"
+        max="180"
+        placeholder="Enter minutes"
+      />
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('pva-modal')">Cancel</button>
@@ -735,7 +748,7 @@ canvas#board { display: block; border-radius: 3px; }
 <div class="modal-overlay" id="disconnect-modal">
   <div class="modal" style="text-align:center;">
     <div style="font-size:2rem;margin-bottom:12px;">🚪</div>
-    <div class="modal-title" style="color:var(--danger);justify-content:center;display:flex;">Opponent Left</div>
+    <div class="modal-title" style="color:var(--danger);display:flex;justify-content:center;">Opponent Left</div>
     <div class="modal-sub" style="margin-bottom:28px;">Your opponent has disconnected from the game.</div>
     <div class="modal-actions" style="justify-content:center;">
       <button class="btn-ghost" onclick="closeModal('disconnect-modal')">Stay &amp; Wait</button>
@@ -815,7 +828,9 @@ function handle(msg) {
     case 'board_update':
     case 'ai_thinking':          onBoard(msg); break;
     case 'legal_moves':          onLegal(msg); break;
-    case 'opponent_disconnected': openModal('disconnect-modal'); break;
+    case 'opponent_disconnected':
+      if (!gameState?.timeout) openModal('disconnect-modal');
+      break;
     case 'error':                toast('⚠ ' + msg.message); break;
   }
 }
@@ -1027,7 +1042,8 @@ function startClock(turn, state) {
   clearInterval(clockInterval);
   const tc = gameState?.timeControl;
   const over =
-    ['CHECKMATE','STALEMATE','DRAW'].includes(state) || gameState?.timeout;
+  ['CHECKMATE','STALEMATE','DRAW'].includes(state)
+  || gameState?.timeout;
 
   if (!tc || tc === 0 || over) {
     renderClocks();
@@ -1044,13 +1060,7 @@ function startClock(turn, state) {
     else                  localBlackMs = Math.max(0, localBlackMs - dt);
 
     renderClocks();
-
-    // When either clock hits zero, tell the server — it will broadcast
-    // the official timeout result to both players
-    if (localWhiteMs === 0 || localBlackMs === 0) {
-      clearInterval(clockInterval);
-      send({ action: 'claim_timeout' });
-    }
+    if (localWhiteMs === 0 || localBlackMs === 0) clearInterval(clockInterval);
   }, 100);
 
   renderClocks();
@@ -1244,12 +1254,8 @@ function updateStatus() {
   // Timeout handling
   if (gameState.timeout) {
     const won = gameState.winner === myColor;
-
     document.getElementById('status-text').textContent =
-      won
-        ? '⏰ Opponent flagged — you win!'
-        : '⏰ You ran out of time';
-
+      won ? '⏰ Opponent timed out — you win!' : '⏰ You timed out';
     return;
   }
 
