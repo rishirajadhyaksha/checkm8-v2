@@ -45,6 +45,7 @@ public class ChessWebSocketHandler extends TextWebSocketHandler {
             case "move"         -> handleMove(session, msg);
             case "legal"        -> handleLegal(session, msg);
             case "new_game"     -> handleNewGame(session);
+            case "claim_timeout"-> handleClaimTimeout(session);
             default             -> sendError(session, "Unknown action: " + action);
         }
     }
@@ -61,6 +62,7 @@ public class ChessWebSocketHandler extends TextWebSocketHandler {
 
         GameSession game = registry.createGame(GameSession.Mode.PVA, difficulty, tc, name);
         game.setWhiteSession(session);
+        game.setOnTimeout(() -> broadcast(game, game.toBoardState("board_update")));
         game.startTurnClock();
         registry.registerSocket(session.getId(), game.getGameId());
 
@@ -96,6 +98,7 @@ public class ChessWebSocketHandler extends TextWebSocketHandler {
         if (game.isFull()) { sendError(session, "Game is full"); return; }
 
         game.setBlackSession(session);
+        game.setOnTimeout(() -> broadcast(game, game.toBoardState("board_update")));
         game.startTurnClock();
         registry.registerSocket(session.getId(), game.getGameId());
 
@@ -149,6 +152,15 @@ public class ChessWebSocketHandler extends TextWebSocketHandler {
         sendJson(session, Map.of("event","legal_moves","row",row,"col",col,"moves",result));
     }
 
+    // ── Timeout claim (from client clock hitting zero) ────────────────────────
+    private void handleClaimTimeout(WebSocketSession session) {
+        Optional<GameSession> gameOpt = registry.getGameForSocket(session.getId());
+        if (gameOpt.isEmpty()) return;
+        GameSession game = gameOpt.get();
+        // Server-side clock is authoritative — just re-check and broadcast result
+        broadcast(game, game.toBoardState("board_update"));
+    }
+
     // ── New game ──────────────────────────────────────────────────────────────
     private void handleNewGame(WebSocketSession session) {
         registry.getGameForSocket(session.getId()).ifPresent(g -> {
@@ -166,7 +178,8 @@ public class ChessWebSocketHandler extends TextWebSocketHandler {
             game.colorOf(session).ifPresent(c -> {
                 WebSocketSession opp = c == Color.WHITE ? game.getBlackSession() : game.getWhiteSession();
                 if (opp != null && opp.isOpen())
-                    sendJson(opp, Map.of("event","opponent_disconnected"));
+                    sendJson(opp, Map.of("event", "opponent_disconnected",
+                                        "message", "Your opponent has left the game."));
             });
         });
         registry.removeSocket(session.getId());

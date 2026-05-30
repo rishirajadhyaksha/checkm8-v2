@@ -6,6 +6,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 
@@ -38,6 +39,14 @@ public class GameSession {
 
     private volatile boolean gameOverOnTime = false;
     private Color winner = null;
+
+    // Server-side clock ticker — fires every 500ms to catch time expiry
+    private ScheduledExecutorService clockTicker;
+    private Runnable onTimeout; // set by the WebSocket handler
+
+    public void setOnTimeout(Runnable cb) {
+        this.onTimeout = cb;
+    }
 
     public GameSession(String gameId, Mode mode, AiDifficulty difficulty,
                        int timeControlSeconds, String creatorName) {
@@ -88,8 +97,19 @@ public class GameSession {
     }
 
     // ── Clock ─────────────────────────────────────────────────────────────────
-    public void startTurnClock() {
-        if (timeControlSeconds > 0) turnStartMs = System.currentTimeMillis();
+    public synchronized void startTurnClock() {
+        if (timeControlSeconds <= 0) return;
+        turnStartMs = System.currentTimeMillis();
+        startClockTicker();
+    }
+
+    private void startClockTicker() {
+        if (clockTicker != null && !clockTicker.isShutdown()) return;
+        clockTicker = Executors.newSingleThreadScheduledExecutor();
+        clockTicker.scheduleAtFixedRate(() -> {
+            if (gameOverOnTime) { clockTicker.shutdownNow(); return; }
+            checkTimeout();
+        }, 500, 500, TimeUnit.MILLISECONDS);
     }
 
     public synchronized void stopTurnClock() {
@@ -124,23 +144,26 @@ public class GameSession {
     }
 
     private synchronized void checkTimeout() {
-    if (timeControlSeconds <= 0 || gameOverOnTime) return;
+        if (timeControlSeconds <= 0 || gameOverOnTime) return;
 
-    long white = getWhiteTimeMs();
-    long black = getBlackTimeMs();
+        long white = getWhiteTimeMs();
+        long black = getBlackTimeMs();
 
-    if (white <= 0) {
-        whiteTimeMs = 0;
-        gameOverOnTime = true;
-        winner = Color.BLACK;
+        if (white <= 0) {
+            whiteTimeMs = 0;
+            gameOverOnTime = true;
+            winner = Color.BLACK;
+        } else if (black <= 0) {
+            blackTimeMs = 0;
+            gameOverOnTime = true;
+            winner = Color.WHITE;
+        }
+
+        if (gameOverOnTime) {
+            if (clockTicker != null) clockTicker.shutdownNow();
+            if (onTimeout != null) onTimeout.run();
+        }
     }
-
-    if (black <= 0) {
-        blackTimeMs = 0;
-        gameOverOnTime = true;
-        winner = Color.WHITE;
-    }
-}
 
     // ── Move ──────────────────────────────────────────────────────────────────
     public synchronized boolean applyMove(int fromRow, int fromCol, int toRow, int toCol, String promotionPiece) {
@@ -240,7 +263,10 @@ public class GameSession {
         };
     }
 
-    public void shutdown() { aiExecutor.shutdownNow(); }
+    public void shutdown() {
+        aiExecutor.shutdownNow();
+        if (clockTicker != null) clockTicker.shutdownNow();
+    }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
     public static class BoardStateDTO {
